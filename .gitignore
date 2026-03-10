@@ -1,0 +1,14 @@
+.next/
+node_modules/
+.pm2/
+
+.env.local
+.env*.local
+
+build.log
+next-start.out.log
+next-start.err.log
+
+ops-backup/
+
+*.log

@@ -6,9 +6,13 @@ import type {
   DataPayload,
   ItemRow,
   LocationAggregates,
-  LocationPayload,
   LocationRow
 } from "@/lib/types";
+import {
+  getDemoDataPayload,
+  getDemoLocationAggregates,
+  getDemoLocationPayload
+} from "@/lib/portfolio-demo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,16 +73,6 @@ const formatText = (value: string | number | null | undefined) => {
   if (value === null || value === undefined) return "--";
   const text = String(value).trim();
   return text ? text : "--";
-};
-
-const parseResponsePayload = async <T,>(response: Response) => {
-  const raw = await response.text();
-  if (!raw) return { payload: null as T | null, raw: "" };
-  try {
-    return { payload: JSON.parse(raw) as T, raw };
-  } catch {
-    return { payload: null as T | null, raw };
-  }
 };
 
 const tooltipContentStyle = {
@@ -157,8 +151,7 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/data", { cache: "no-store" });
-      const payload = (await response.json()) as DataPayload;
+      const payload = getDemoDataPayload();
       setData(payload);
       setErrorMessage(payload.error ?? null);
     } catch (error) {
@@ -169,51 +162,8 @@ export default function DashboardPage() {
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    if (data?.refreshMode === "token" && !refreshToken.trim()) {
-      setErrorMessage("Informe o token para atualizar agora");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const headers: Record<string, string> = {};
-      if (data?.refreshMode === "token") {
-        headers["x-refresh-token"] = refreshToken.trim();
-      }
-      const response = await fetch("/api/data", {
-        method: "POST",
-        headers,
-        cache: "no-store"
-      });
-      const { payload, raw } = await parseResponsePayload<
-        (DataPayload & { error?: string }) | null
-      >(response);
-      if (!response.ok) {
-        const fallback = response.status
-          ? `Falha ao atualizar agora (HTTP ${response.status})`
-          : "Falha ao atualizar agora";
-        setErrorMessage(payload?.error ?? fallback);
-        if (!payload && raw) {
-          console.error("[grid] refresh response not JSON", raw);
-        }
-      } else {
-        if (!payload) {
-          setErrorMessage("Falha ao atualizar agora");
-          return;
-        }
-        setErrorMessage(payload.error ?? null);
-      }
-      if (payload) {
-        setData(payload);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao atualizar agora";
-      console.error("[grid] refresh failed", error);
-      setErrorMessage(message || "Falha ao atualizar agora");
-    } finally {
-      setLoading(false);
-    }
-  }, [data, fetchData, refreshToken]);
+    await fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -448,14 +398,18 @@ export default function DashboardPage() {
         params.set("sortBy", locationSortBy);
         params.set("sortDir", locationSortDir);
 
-        const response = await fetch(`/api/estoque/localizacao?${params.toString()}`, {
-          cache: "no-store",
-          signal
+        const payload = getDemoLocationPayload({
+          prefix: params.get("prefix") ?? "8",
+          descricao: params.get("descricao") ?? "",
+          localEstoque: params.get("localEstoque") ?? "",
+          localizacao: params.get("localizacao") ?? "",
+          onlyPositive: (params.get("onlyPositive") ?? "").toLowerCase() === "true",
+          page: Number(params.get("page") ?? "1"),
+          pageSize: Number(params.get("pageSize") ?? "50"),
+          sortBy: (params.get("sortBy") ?? "localizacao").toLowerCase(),
+          sortDir:
+            (params.get("sortDir") ?? "asc").toLowerCase() === "desc" ? "desc" : "asc"
         });
-        if (!response.ok) {
-          throw new Error("Falha ao carregar localizacoes");
-        }
-        const payload = (await response.json()) as LocationPayload;
         if (signal?.aborted) return;
         setLocationRows(payload.rows ?? []);
         setLocationTotal(payload.total ?? 0);
@@ -502,14 +456,13 @@ export default function DashboardPage() {
           params.set("force", "true");
         }
 
-        const response = await fetch(`/api/estoque/localizacao/aggregates?${params.toString()}`, {
-          cache: "no-store",
-          signal
+        const payload = getDemoLocationAggregates({
+          prefix: params.get("prefix") ?? "8",
+          descricao: params.get("descricao") ?? "",
+          localEstoque: params.get("localEstoque") ?? "",
+          localizacao: params.get("localizacao") ?? "",
+          onlyPositive: false
         });
-        if (!response.ok) {
-          throw new Error("Falha ao carregar agregados");
-        }
-        const payload = (await response.json()) as LocationAggregates;
         if (signal?.aborted) return;
         setLocationAggregates(payload);
         setLocationLastUpdated(new Date().toISOString());
@@ -591,7 +544,7 @@ export default function DashboardPage() {
     (key: string) => {
       if (locationSortIsDefault) return "";
       if (locationSortBy !== key) return "";
-      return locationSortDir === "asc" ? "▲" : "▼";
+      return locationSortDir === "asc" ? "^" : "v";
     },
     [locationSortBy, locationSortDir, locationSortIsDefault]
   );

@@ -1,0 +1,11 @@
+services:
+  estoque-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: estoque-em-tempo-real
+    restart: unless-stopped
+    ports:
+      - "3012:80"
+    labels:
+      - "com.docker.compose.project=estoque-em-tempo-real"

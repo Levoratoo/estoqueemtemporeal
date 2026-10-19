@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 $TargetDir = "C:\Users\pedro.levorato\Documents\estoque em tempo real"
 $RepoUrl = "https://github.com/Levoratoo/estoqueemtemporeal.git"
 
-$DeployBranch = "cursor/docker-deploy-estoque-3390"
+$DeployBranch = "main"
 
 if (Test-Path (Join-Path $TargetDir ".git")) {
   Write-Host "Atualizando repositório em: $TargetDir (branch $DeployBranch)"
